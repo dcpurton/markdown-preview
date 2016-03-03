@@ -452,7 +452,7 @@ var inline = {
   autolink: /^<([^ >]+(@|:\/)[^ >]+)>/,
   url: noop,
   tag: /^<!--[\s\S]*?-->|^<\/?\w+(?:"[^"]*"|'[^']*'|[^'">])*?>/,
-  link: /^!?\[(inside)\]\(href\)/,
+  link: /^!?\[(inside)\]\(href\)({dimen})?/,
   reflink: /^!?\[(inside)\]\s*\[([^\]]*)\]/,
   nolink: /^!?\[((?:\[[^\]]*\]|[^\[\]])*)\]/,
   strong: /^__([\s\S]+?)__(?!_)|^\*\*([\s\S]+?)\*\*(?!\*)/,
@@ -465,10 +465,12 @@ var inline = {
 
 inline._inside = /(?:\[[^\]]*\]|[^\[\]]|\](?=[^\[]*\]))*/;
 inline._href = /\s*<?([\s\S]*?)>?(?:\s+['"]([\s\S]*?)['"])?\s*/;
+inline._dimen = /(.*?)/;
 
 inline.link = replace(inline.link)
   ('inside', inline._inside)
   ('href', inline._href)
+  ('dimen', inline._dimen)
   ();
 
 inline.reflink = replace(inline.reflink)
@@ -619,7 +621,8 @@ InlineLexer.prototype.output = function(src) {
       this.inLink = true;
       out += this.outputLink(cap, {
         href: cap[2],
-        title: cap[3]
+        title: cap[3],
+        dimen: cap[4]
       });
       this.inLink = false;
       continue;
@@ -699,11 +702,12 @@ InlineLexer.prototype.output = function(src) {
 
 InlineLexer.prototype.outputLink = function(cap, link) {
   var href = escape(link.href)
-    , title = link.title ? escape(link.title) : null;
+    , title = link.title ? escape(link.title) : null
+    , dimen = link.dimen;
 
   return cap[0].charAt(0) !== '!'
     ? this.renderer.link(href, title, this.output(cap[1]))
-    : this.renderer.image(href, title, escape(cap[1]));
+    : this.renderer.image(href, title, dimen, escape(cap[1]));
 };
 
 /**
@@ -882,10 +886,18 @@ Renderer.prototype.link = function(href, title, text) {
   return out;
 };
 
-Renderer.prototype.image = function(href, title, text) {
+Renderer.prototype.image = function(href, title, dimen, text) {
   var out = '<img src="' + href + '" alt="' + text + '"';
   if (title) {
     out += ' title="' + title + '"';
+  }
+  if (dimen) {
+    dimen = dimen.replace(/{(.*?)}/, "$1");
+    dimen = dimen.replace(/\s/g, "");
+    dimen = dimen.replace(/=/g, ":");
+    dimen = dimen.replace(/px/, "px;");
+    dimen = dimen.replace(/%/, "%;");
+    out += ' style="' + dimen + '"';
   }
   out += this.options.xhtml ? '/>' : '>';
   return out;
