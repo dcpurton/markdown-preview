@@ -1,71 +1,52 @@
 (function(document) {
 
-    var interval, 
+    var interval,
         defaultReloadFreq = 3,
         previousText,
         storage = chrome.storage.local;
 
-    function parseMatchPattern(input) {
-        if (typeof input !== 'string') {
-            return null;
+    function getExtension(url) {
+        url = url.substr(1 + url.lastIndexOf("/"))
+            .split('?')[0]
+            .split('#')[0];
+        return url.substr(1 + url.lastIndexOf("."))
+    }
+
+    function resolveImg(img) {
+        var src = $(img).attr("src");
+        if (src[0] == "/") {
+            $(img).attr("src", src.substring(1));
         }
-        var match_pattern = '(?:^', 
-            regEscape = function(s) {return s.replace(/[[^$.|?*+(){}\\]/g, '\\$&');},  
-            result = /^(\*|https?|file|ftp|chrome-extension):\/\//.exec(input);
-
-        // Parse scheme
-        if (!result) {
-            return null;
-        }
-
-        input = input.substr(result[0].length);
-        match_pattern += result[1] === '*' ? 'https?://' : result[1] + '://';
-
-        // Parse host if scheme is not `file`
-        if (result[1] !== 'file') {
-            if (!(result = /^(?:\*|(\*\.)?([^\/*]+))/.exec(input))) return null;
-            input = input.substr(result[0].length);
-            if (result[0] === '*') {    // host is '*'
-                match_pattern += '[^/]+';
-            } else {
-                if (match[1]) {         // Subdomain wildcard exists
-                    match_pattern += '(?:[^/]+\.)?';
-                }
-                // Append host (escape special regex characters)
-                match_pattern += regEscape(match[2]) + '/';
-            }
-        }
-
-        // Add remainder (path)
-        match_pattern += input.split('*').map(regEscape).join('.*');
-        match_pattern += '$)';
-        return match_pattern;
     }
 
     // Onload, take the DOM of the page, get the markdown formatted text out and
     // apply the converter.
     function makeHtml(data) {
         storage.get('mathjax', function(items) {
-            if(items.mathjax) {
-                data = data.replace(/\\\(/g, "\\\\(");
-                data = data.replace(/\\\)/g, "\\\\)");
-                data = data.replace(/\\\[/g, "\\\\[");
-                data = data.replace(/\\\]/g, "\\\\]");
-            }
-
-            marked.setOptions({
-                highlight : function(code) {
-                    return hljs.highlightAuto(code).value;
-                }
-            });
+            // Convert MarkDown to HTML without MathJax typesetting.
+            // This is done to make page responsiveness.  The HTML body
+            // is replaced after MathJax typesetting.
+            marked.setOptions(config.markedOptions);
             var html = marked(data);
             $(document.body).html(html);
+            $('img').on("error", function() {
+                resolveImg(this);
+            });
 
+            // Apply MathJax typesetting
             if (items.mathjax) {
-                // Inject js to reload MathJax
-                var js = $('<script/>').attr('type', 'text/javascript')
-                    .attr('src', chrome.extension.getURL('js/runMathJax.js'));
-                $(document.head).append(js);
+                $.getScript(chrome.extension.getURL('js/marked.js'));
+                $.getScript(chrome.extension.getURL('js/highlight.js'), function() {
+                    $.getScript(chrome.extension.getURL('js/config.js'));
+                });
+                $.getScript(chrome.extension.getURL('js/runMathJax.js'));
+
+                // Create hidden div to use for MathJax processing
+                var mathjaxDiv = document.createElement("div");
+                mathjaxDiv.setAttribute("id", config.mathjaxProcessingElementId);
+                $(mathjaxDiv).text(data);
+                mathjaxDiv.style.display = 'none';
+                document.body.appendChild(mathjaxDiv);
             }
         });
     }
@@ -110,12 +91,21 @@
     }
 
     function setMathJax() {
-        var mjc = $('<script/>').attr('type', 'text/x-mathjax-config')
-            .html("MathJax.Hub.Config({tex2jax: {inlineMath: [ ['$','$'], ['\\\\(','\\\\)'] ],processEscapes:true}});");
-        $(document.head).append(mjc);
-        var js = $('<script/>').attr('type','text/javascript')
-            .attr('src', 'http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML');
-        $(document.head).append(js);
+        storage.get('enable_latex_delimiters', function(items) {
+
+            // Enable MathJAX LaTeX delimiters
+            if (items.enable_latex_delimiters) {
+                config.enableLatexDelimiters();
+            }
+
+            // Add MathJax configuration and js to document head
+            $.getScript('https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML');
+            var mjc = $('<script/>').attr('type', 'text/x-mathjax-config').
+                html("MathJax.Hub.Config(" +
+                     JSON.stringify(config.mathjaxConfig) +
+                     ");");
+            $(document.head).append(mjc);
+        });
     }
 
     function stopAutoReload() {
@@ -134,13 +124,13 @@
 
         interval = setInterval(function() {
             $.ajax({
-                url : location.href, 
-                cache : false,
-                success : function(data) { 
+                url: location.href,
+                cache: false,
+                success: function(data) {
                     if (previousText == data) {
                         return;
                     }
-                    makeHtml(data); 
+                    makeHtml(data);
                     previousText = data;
                 }
             });
@@ -149,12 +139,12 @@
 
     function render() {
         $.ajax({
-            url : location.href, 
-            cache : false,
-            complete : function(xhr, textStatus) {
+            url: location.href,
+            cache: false,
+            complete: function(xhr, textStatus) {
                 var contentType = xhr.getResponseHeader('Content-Type');
                 if(contentType && (contentType.indexOf('html') > -1)) {
-                    return;    
+                    return;
                 }
 
                 makeHtml(document.body.innerText);
@@ -192,11 +182,8 @@
             return;
         }
 
-        var parsed = $.map(exts, function(k, v) {
-            return parseMatchPattern(v);
-        });
-        var pattern = new RegExp(parsed.join('|'));
-        if(!parsed.length || !pattern.test(location.href)) {
+        var fileExt = getExtension(location.href);
+        if (typeof exts[fileExt] == "undefined") {
             render();
         }
     });

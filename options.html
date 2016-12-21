@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>MarkDown Preview Plus options</title>
-<link href="bootstrap.min.css" rel="stylesheet">
-
+<link href="bootstrap.css" rel="stylesheet">
 <script src="js/jquery.js"></script>
 </head>
 <body>
@@ -20,7 +19,17 @@
             <h2>Miscs</h2>
         </div>
         <p>
-        <label class="checkbox"><input type="checkbox" id="mathjax">Enable MathJax</label>
+        <label class="checkbox"><input type="checkbox" id="mathjax"/>Enable MathJax</label>
+        </p>
+        <p>
+        <label class="checkbox">
+          <input type="checkbox" id="enable-latex-delimiters">
+          Enable LaTeX delimiters: <code>$math$</code>, <code>\(math\)</code>,
+          <code>\[math\]</code>.
+          <strong>Note</strong>: LaTeX environments (e.g., <code>equation</code>
+          and <code>eqnarray</code>) are always (even if LaTeX delimiters are
+          disabled). The option conflict with php code block.
+        </label>
         </p>
         <p>
         <label class="checkbox"><input type="checkbox" id="auto-reload">Enable auto-reload</label>
@@ -68,27 +77,16 @@
         <h2>Supported file extensions</h2>
         </div>
         <p class="cont-exts">
-        <label class="checkbox"><input type="checkbox" value="http://*/*.md*" checked="checked">http://*/*.md*</label>
-        <label class="checkbox"><input type="checkbox" value="http://*/*.text*" checked="checked">http://*/*.text*</label>
-        <label class="checkbox"><input type="checkbox" value="http://*/*.markdown*" checked="checked">http://*/*.markdown*</label>
-        <label class="checkbox"><input type="checkbox" value="http://*/*.mdown*" checked="checked">http://*/*.mdown*</label>
-        <label class="checkbox"><input type="checkbox" value="http://*/*.txt*" checked="checked">http://*/*.txt*</label>
-        <label class="checkbox"><input type="checkbox" value="http://*/*.mkd*" checked="checked">http://*/*.mkd*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.md*" checked="checked">https://*/*.md*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.text*" checked="checked">https://*/*.text*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.markdown*" checked="checked">https://*/*.markdown*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.mdown*" checked="checked">https://*/*.mdown*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.txt*" checked="checked">https://*/*.txt*</label>
-        <label class="checkbox"><input type="checkbox" value="https://*/*.mkd*" checked="checked">https://*/*.mkd*</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.md" checked="checked">file://*/*.md</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.markdown" checked="checked">file://*/*.markdown</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.mdown" checked="checked">file://*/*.mdown</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.text" checked="checked">file://*/*.text</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.txt" checked="checked">file://*/*.txt</label>
-        <label class="checkbox"><input type="checkbox" value="file://*/*.mkd" checked="checked">file://*/*.mkd</label>
+        <label class="checkbox"><input type="checkbox" value="md" checked="checked">md</label>
+        <label class="checkbox"><input type="checkbox" value="MD" checked="checked">MD</label>
+        <label class="checkbox"><input type="checkbox" value="text" checked="checked">text</label>
+        <label class="checkbox"><input type="checkbox" value="markdown" checked="checked">markdown</label>
+        <label class="checkbox"><input type="checkbox" value="mdown" checked="checked">mdown</label>
+        <label class="checkbox"><input type="checkbox" value="txt" checked="checked">txt</label>
+        <label class="checkbox"><input type="checkbox" value="mkd" checked="checked">mkd</label>
+        <label class="checkbox"><input type="checkbox" value="rst" checked="checked">rst</label>
         </p>
     </section>
-    
 </div>
 
 <script src="js/options.js"></script>
