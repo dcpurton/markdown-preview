@@ -4,7 +4,7 @@ var storage = chrome.storage.local,
     themePrefix = 'theme_',
     maxCustomCssSize = 8192,
     defaultReloadFreq = 3,
-    defaultThemes = ['Clearness', 'ClearnessDark', 'Github', 'TopMarks'];
+    defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'TopMarks'];
 
 function message(text, type) {
     var msgType = type || 'success',
