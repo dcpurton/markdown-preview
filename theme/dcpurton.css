@@ -138,6 +138,38 @@ th {
 
 tr:nth-child(even) {background-color: #f2f2f2}
 
+ul > li > ul > li > ul > li > ul {
+  list-style-type: disc;
+}
+
+ul > li > ul > li > ul > li > ul > li > ul {
+  list-style-type: circle;
+}
+
+ul > li > ul > li > ul > li > ul > li > ul > li > ul {
+  list-style-type: square;
+}
+
+ol ol {
+  list-style-type: lower-alpha;
+}
+
+ol ol ol {
+  list-style-type: lower-roman;
+}
+
+ol > li > ul {
+  list-style-type: disc;
+}
+
+ol > li > ul > li > ul {
+  list-style-type: circle;
+}
+
+ol > li > ul > li > ul > li > ul {
+  list-style-type: square;
+}
+
 /*
 foundation.css
 Description: Foundation 4 docs style for highlight.js
