@@ -10,6 +10,7 @@ window.config = (function(hljs) {
         gfm: true,
         tables: true,
         breaks: false,
+        sanitize: true,
         highlight: function(code) {
             return hljs.highlightAuto(code).value;
         }
@@ -20,9 +21,13 @@ window.config = (function(hljs) {
     // Note: when math delimiters are set in JS as strings, backslashes need
     // to be escaped
     module.mathjaxConfig = {
+        showMathMenu: false,
+        showProcessingMessages: false,
+        messageStyle: "none",
         tex2jax: {
             inlineMath: [ ['\\\\(', '\\\\)'] ],
             displayMath: [ ['$$', '$$'], ['\\\\[', '\\\\]'] ],
+            // skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
             processEscapes: false
         }
     };

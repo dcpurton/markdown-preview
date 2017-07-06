@@ -1,9 +1,9 @@
 {
   "name": "Markdown Preview Plus",
-  "version": "0.5.6",
+  "version": "0.6.1",
   "manifest_version": 2,
 
-  "description": "Converts and previews markdown files (.md, .markdown) to HTML right inside Chrome.",
+  "description": "Converts and previews markdown files (.md, .markdown) to HTML right inside Chrome and support live reload",
   "icons": {
     "128": "images/icon.png",
     "48": "images/icon.png",
@@ -41,9 +41,6 @@
   ],
   "permissions": [
       "storage",
-      "activeTab",
-      "pageCapture",
-      "downloads",
       "clipboardWrite",
       "<all_urls>"
   ],
@@ -54,6 +51,7 @@
       "theme/dcpurton.css",
       "theme/Github.css",
       "theme/TopMarks.css",
+      "theme/YetAnotherGithub.css",
       "theme/i/cal.png",
       "theme/i/compass.png",
       "theme/i/doc.png",

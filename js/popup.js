@@ -4,7 +4,7 @@ var pageKey,
     storage = chrome.storage.local,
     themePrefix = 'theme_',
     specialThemePrefix = 'special_',
-    defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'TopMarks'];
+    defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'TopMarks', 'YetAnotherGithub'];
 
 storage.get('theme', function(items) {
     var theme = items.theme ? items.theme : 'Clearness';
@@ -39,18 +39,6 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
         var obj = {};
         obj[pageKey] = $(this).val();
         storage.set(obj);
-    });
-});
-
-$('#btn-export').click(function() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        chrome.pageCapture.saveAsMHTML({tabId: tabs[0].id}, function(mhtml){
-            var url = URL.createObjectURL(mhtml);
-            chrome.downloads.download({
-                url: url,
-                filename: 'export.mhtml'
-            });
-        });
     });
 });
 
