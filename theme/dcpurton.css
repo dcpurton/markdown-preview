@@ -56,10 +56,12 @@ h4 {
 }
 h5 {
     font-size: 12pt;
+    font-variant: small-caps;
 }
 h6 {
     font-size: 12pt;
     font-style: italic;
+    font-variant: small-caps;
 }
 hr {
     margin: 0 0 19px;
