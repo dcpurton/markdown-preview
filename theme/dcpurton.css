@@ -119,6 +119,7 @@ td {
   color: black;
   border: 1px solid #737373;
   padding: 4px 4px;
+  vertical-align: top;
 }
 
 th {
@@ -161,3 +162,22 @@ ol > li > ul > li > ul > li > ul {
   list-style-type: square;
 }
 
+.BlogAnchor {
+  visibility: hidden;
+}
+
+img {
+  max-width: 100%
+}
+
+section.greenbox, div.greenbox {border: 2pt #00a644 solid; border-radius: 6pt; padding: 1ex 1ex; margin: 1.5ex 0;}
+section.yellowbox, div.yellowbox {border: 2pt #dec300 solid; border-left-width: 10pt; padding: 1ex 1ex; margin: 1.5ex 0;}
+div.yellowbox {text-indent: 1em;}
+div.yellowbox p {margin: 0 0;}
+div.yellowbox p:first-of-type {text-indent: 0;}
+section.bluebox, div.bluebox {border: 2pt #99d6ea solid; border-left-width: 10pt; padding: 1ex 1ex; margin: 1.5ex 0;}
+.yellowbox > :first-child, .bluebox > :first-child, .greenbox > :first-child { margin-top: 0; }
+.yellowbox > :last-child, .bluebox > :last-child, .greenbox > :last-child { margin-bottom: 0; }
+div.yellowbox > hr {margin: 1ex -1ex 1ex -1ex; border: none; border-top: 2pt solid #dec300;}
+div.yellowbox > hr + p {text-indent: 0;}
+div.break {page-break-after: always;}

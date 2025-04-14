@@ -14,6 +14,7 @@ var block = {
   newline: /^\n+/,
   code: /^( {4}[^\n]+\n*)+/,
   fences: noop,
+  divs: noop,
   hr: /^( *[-*_]){3,} *(?:\n+|$)/,
   heading: /^ *(#{1,6}) *([^\n]+?) *#* *(?:\n+|$)/,
   nptable: noop,
@@ -77,6 +78,7 @@ block.normal = merge({}, block);
 
 block.gfm = merge({}, block.normal, {
   fences: /^ *(`{3,}|~{3,})[ \.]*(\S+)? *\n([\s\S]*?)\s*\1 *(?:\n+|$)/,
+  divs: /^ *(:{3,}|~{3,})[ \.]*(\S+)? *\n([\s\S]*?)\s*\1 *(?:\n+|$)/,
   paragraph: /^/,
   heading: /^ *(#{1,6}) +([^\n]+?) *#* *(?:\n+|$)/
 });
@@ -138,7 +140,6 @@ Lexer.prototype.lex = function(src) {
   src = src
     .replace(/\r\n|\r/g, '\n')
     .replace(/\t/g, '    ')
-    .replace(/\u00a0/g, ' ')
     .replace(/\u2424/g, '\n');
 
   return this.token(src, true);
@@ -192,6 +193,21 @@ Lexer.prototype.token = function(src, top, bq) {
         type: 'code',
         lang: cap[2],
         text: cap[3] || ''
+      });
+      continue;
+    }
+
+    // divs (gfm)
+    if (cap = this.rules.divs.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'divs_start',
+        cls: cap[2]
+      });
+      cap = cap[3];
+      this.token(cap, top, true);
+      this.tokens.push({
+        type: 'divs_end'
       });
       continue;
     }
@@ -802,6 +818,20 @@ Renderer.prototype.code = function(code, lang, escaped) {
     + '\n</code></pre>\n';
 };
 
+Renderer.prototype.div = function(div, cls) {
+  if (!cls) {
+    return '<div>'
+      + div
+      + '\n</div>';
+  }
+
+  return '<div class="'
+    + escape(cls, true)
+    + '">'
+    + div
+    + '\n</div>\n';
+};
+
 Renderer.prototype.blockquote = function(quote) {
   return '<blockquote>\n' + quote + '</blockquote>\n';
 };
@@ -1071,6 +1101,17 @@ Parser.prototype.tok = function() {
 
       return this.renderer.blockquote(body);
     }
+    case 'divs_start': {
+      var body = '';
+      var cls = this.token.cls;
+
+      while (this.next().type !== 'divs_end') {
+        body += this.tok();
+      }
+
+      return this.renderer.div(body, cls);
+    }
+
     case 'list_start': {
       var body = ''
         , taskList = false
