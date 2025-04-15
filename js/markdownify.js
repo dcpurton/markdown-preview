@@ -1,9 +1,26 @@
 (function(document) {
 
+    const specialThemePrefix = 'special_'
+    let mpp = {
+        markedLoaded: 0
+    }
+
     var interval,
         defaultReloadFreq = 3,
         previousText,
+        toc = [],
         storage = chrome.storage.local;
+
+    mpp.isText = () => {
+        var value = document.contentType;
+        return value && /text\/(?:x-)?(markdown|plain)/i.test(value);
+    };
+
+    mpp.ajax = options => {
+        chrome.runtime.sendMessage({message: "autoreload", url: options.url}, response => {
+            options.complete(response);
+        });
+    };
 
     function getExtension(url) {
         url = url.substr(1 + url.lastIndexOf("/"))
@@ -13,6 +30,12 @@
         return ext.toLowerCase();
     }
 
+    function hasValue(obj, key) {
+        return obj && 
+           obj.hasOwnProperty(key) && 
+           $.trim(obj[key]).length > 0;
+    }
+
     function resolveImg(img) {
         var src = $(img).attr("src");
         if (src[0] == "/") {
@@ -20,62 +43,138 @@
         }
     }
 
-    function runMathjax(data) {
-        // Create hidden div to use for MathJax processing
-        var mathjaxDiv = $("<div/>").attr("id", config.mathjaxProcessingElementId)
-                            .text(data)
-                            .hide();
-        $(document.body).append(mathjaxDiv);
+    function postRender() {
+        if (location.hash) {
+            window.setTimeout(function() {
+                var target = $(location.hash);
+                if (target.length == 0) {
+                    target = $('a[name="' + location.hash.substring(1) + '"]');
+                }
+                if (target.length == 0) {
+                    target = $('html');
+                }
+                $('html, body').animate({
+                    scrollTop: target.offset().top
+                }, 200);
+            }, 300);
 
-        $.getScript(chrome.extension.getURL('js/marked.js'));
-        $.getScript(chrome.extension.getURL('js/highlight.js'), function() {
-            $.getScript(chrome.extension.getURL('js/config.js'));
-        });
-        $.getScript(chrome.extension.getURL('js/runMathJax.js'));
+        }
+    }
+
+    var buildCtx = (coll, k, level, ctx) => {
+        if (k >= coll.length || coll[k].level <= level) { return k; }
+        var node = coll[k];
+        ctx.push("<li><a href='#" + node.anchor + "'>" + node.text + "</a>");
+        k++;
+        var childCtx = [];
+        k = buildCtx(coll, k, node.level, childCtx);
+        if (childCtx.length > 0) {
+            ctx.push("<ul>");
+            childCtx.forEach(function (idm) {
+                ctx.push(idm);
+            });
+            ctx.push("</ul>");
+        }
+        ctx.push("</li>");
+        k = buildCtx(coll, k, level, ctx);
+        return k;
+    };
+
+    function initMarked() {
+        if (mpp.markedLoaded) {
+            return
+        }
+
+        marked.setOptions(config.markedOptions);
+        marked.use(markedHighlight({
+          langPrefix: 'hljs language-',
+          highlight(code, lang) {
+            return hljs.highlightAuto(code).value;
+          }
+        }));
+
+        mpp.markedLoaded = true
     }
 
     // Onload, take the DOM of the page, get the markdown formatted text out and
     // apply the converter.
     function makeHtml(data) {
-        storage.get(['mathjax', 'html'], function(items) {
-            // Convert MarkDown to HTML without MathJax typesetting.
-            // This is done to make page responsiveness.  The HTML body
-            // is replaced after MathJax typesetting.
-            if (items.html) {
-                config.markedOptions.sanitize = false;
+        storage.get(['supportMath', 'katex', 'toc'], function(items) {
+            // Convert MarkDown to HTML
+            var preHtml = data;
+            if (items.katex) {
+                config.markedOptions.katex = true;
+                preHtml = diagramFlowSeq.prepareDiagram(preHtml);
             }
-            marked.setOptions(config.markedOptions);
-            var html = marked(data);
-            $(document.body).html(html);
 
-            $('img').on("error", function() {
-                resolveImg(this);
+            if (items.toc) {
+                toc = [];
+                const renderer = new marked.Renderer()
+                const slugger = new marked.Slugger()
+                const r = {
+                  heading: renderer.heading.bind(renderer),
+                };
+
+                renderer.heading = (text, level, raw, slugger) => {
+                    var anchor = config.markedOptions.headerPrefix + slugger.serialize(raw)
+
+                    toc.push({
+                        anchor: anchor,
+                        level: level,
+                        text: text
+                    });
+
+                    return r.heading(text, level, raw, slugger);
+                };
+                config.markedOptions.renderer = renderer;
+            }
+
+            initMarked()
+            var html = marked.parse(preHtml);
+            html = DOMPurify.sanitize(html, {
+                ADD_ATTR: ['flow'],
+                SANITIZE_DOM: false
             });
 
-            addTOC();
-            
-            // Apply MathJax typesetting
-            if (items.mathjax) {
-                runMathjax(data);
+            if (items.toc) {
+                var ctx = [];
+                ctx.push('<div class="toc-list"><h1 id="table-of-contents">Table of Contents</h1>\n<ul>');
+                buildCtx(toc, 0, 0, ctx);
+                ctx.push("</ul></div>");
+                html = ctx.join('') + html
             }
+            $(document.body).html(html);
+            $('img').on("error", () => resolveImg(this));
+
+            diagramFlowSeq.drawAllMermaid();
+            postRender();
         });
     }
 
     function getThemeCss(theme) {
-        return chrome.extension.getURL('theme/' + theme + '.css');
+        return chrome.runtime.getURL('theme/' + theme + '.css');
     }
 
-    function setTheme(theme) {
-        var defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'TopMarks', 'YetAnotherGithub'];
+    function insertCssPaths(paths) {
+        let cssClass = 'CUSTOM_CSS_PATH'
+        $('.' + cssClass).remove()
+        paths.forEach(css => {
+            let cssLink = $('<link/>').addClass(cssClass)
+            cssLink
+                .attr('rel', 'stylesheet')
+                .attr('href', css)
+            $(document.head).append(cssLink)
+        })
+    }
 
-        if($.inArray(theme, defaultThemes) != -1) {
-            var link = $('#theme');
+    function insertThemeCss(theme) {
+        if (hasValue(config.themes, theme)) {
+            var link = $('#theme')
             $('#custom-theme').remove();
             if(!link.length) {
                 var ss = document.createElement('link');
                 ss.rel = 'stylesheet';
                 ss.id = 'theme';
-                //ss.media = "print";
                 ss.href = getThemeCss(theme);
                 document.head.appendChild(ss);
             } else {
@@ -100,6 +199,23 @@
         }
     }
 
+    function setTheme() {
+        let pageKey = specialThemePrefix + location.href
+        storage.get([pageKey, 'theme', 'custom_themes', 'custom_css_paths'], function(items) {
+            if (items.length == 0) {
+                // load default theme
+                insertThemeCss('Clearness')
+            } else if (hasValue(items, pageKey)) {
+                insertThemeCss(items[pageKey])
+            } else if (hasValue(items, 'custom_css_paths')) {
+                let cssPaths = JSON.parse(items.custom_css_paths)
+                insertCssPaths(cssPaths)
+            } else if (hasValue(items, 'theme')) {
+                insertThemeCss(items.theme)
+            }
+        })
+    }
+
     function stopAutoReload() {
         clearInterval(interval);
     }
@@ -115,10 +231,10 @@
         });
 
         interval = setInterval(function() {
-            $.ajax({
-                url: location.href,
-                cache: false,
-                success: function(data) {
+            mpp.ajax({
+                url: location,
+                complete: (response) => {
+                    var data = response.data
                     if (previousText == data) {
                         return;
                     }
@@ -130,26 +246,17 @@
     }
 
     function render() {
-        $.ajax({
-            url: location.href,
-            cache: false,
-            complete: function(xhr, textStatus) {
-                var contentType = xhr.getResponseHeader('Content-Type');
-                if(contentType && (contentType.indexOf('html') > -1)) {
-                    return;
-                }
+        if (!mpp.isText()) {
+            return;
+        }
 
+        mpp.ajax({
+            url: location,
+            cache: false,
+            complete: function(response) {
                 previousText = document.body.innerText;
                 makeHtml(document.body.innerText);
-                var specialThemePrefix = 'special_',
-                    pageKey = specialThemePrefix + location.href;
-                storage.get(['theme', pageKey], function(items) {
-                    theme = items.theme ? items.theme : 'Clearness';
-                    if(items[pageKey]) {
-                        theme = items[pageKey];
-                    }
-                    setTheme(theme);
-                });
+                setTheme()
 
                 storage.get('auto_reload', function(items) {
                     if(items.auto_reload) {
@@ -160,21 +267,15 @@
         });
     }
 
-    storage.get(['exclude_exts', 'disable_markdown', 'mathjax', 'html', 'enable_latex_delimiters'], function(items) {
+    storage.get(['exclude_exts', 'disable_markdown', 'katex', 'html'], function(items) {
         if (items.disable_markdown) {
             return;
         }
 
-        if (items.enable_latex_delimiters) {
-            config.enableLatexDelimiters();
-        }
-
-        if (items.mathjax) {
-            // Enable MathJAX LaTeX delimiters
-            // Add MathJax configuration and js to document head
-            $.getScript('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML');
-            var mjc = $('<script/>').attr('type', 'text/x-mathjax-config')
-                .html("MathJax.Hub.Config(" + JSON.stringify(config.mathjaxConfig) + ");");
+        if (items.katex) {
+            var mjc = document.createElement('link');
+            mjc.rel = 'stylesheet';
+            mjc.href = chrome.runtime.getURL('css/katex.min.css');
             $(document.head).append(mjc);
         }
 
@@ -186,25 +287,22 @@
         }
 
         var fileExt = getExtension(location.href);
-        if (($.inArray(fileExt, allExtentions) != -1) && 
+        if (($.inArray(fileExt, allExtentions) != -1) &&
             (typeof exts[fileExt] == "undefined")) {
             render();
         }
     });
 
     chrome.storage.onChanged.addListener(function(changes, namespace) {
-        var specialThemePrefix = 'special_',
-            pageKey = specialThemePrefix + location.href;
+        var pageKey = specialThemePrefix + location.href;
+
+        console.log("changes:", changes)
         for (key in changes) {
             var value = changes[key];
-            if(key == pageKey) {
-                setTheme(value.newValue);
-            } else if(key == 'theme') {
-                storage.get(pageKey, function(items) {
-                    if(!items[pageKey]) {
-                        setTheme(value.newValue);
-                    }
-                });
+            if(key == pageKey || key == 'theme' || key == 'custom_css_paths') {
+                setTheme();
+            } else if(key == 'toc') {
+                location.reload();
             } else if(key == 'reload_freq') {
                 storage.get('auto_reload', function(items) {
                     startAutoReload();
@@ -217,265 +315,12 @@
                 }
             } else if(key == 'disable_markdown') {
                 location.reload();
+            } else if(key == 'supportMath') {
+                location.reload();
+            } else if(key == 'katex') {
+                location.reload();
             }
         }
     });
-
-    // {{{ Start of TOC code
-    var showNavBar = true;
-    var expandNavBar = true;
-    var hasNavItem = true;
-    var vH1Tag = null, vH2Tag = null, vH3Tag = null, vH4Tag = null;
-    var headerNavs;
-    var headerTops = [];
-    var tocTops = [];
-
-    var scrollDirection = "none";
-    var lastY = 'undefined';
-    function scrollFunc() {
-        if (typeof lastY == 'undefined') {
-          lastY = window.pageYOffset;
-        }
-        var diffY = lastY - window.pageYOffset;
-        lastY = window.pageYOffset;
-        if (diffY < 0) { // down
-          scrollDirection = 'down';
-        } else if (diffY > 0) { // up
-          scrollDirection = 'up';
-        } else { // first enter
-          scrollDirection = 'first';//just set as "first"
-        }
-    };
-
-    function addTOC() {
-        makeTOC();
-        if(showNavBar && hasNavItem){
-            if(hasScroll("AnchorContent")){
-                $("#AnchorContent").hover(function (){  
-                    $("#AnchorContent").preventScroll();  
-                },function (){  
-                });  
-            }
-            setTimeout(calcBounds, 100);
-        }
-    };
-
-    $(window).resize(function(){
-        if(showNavBar){
-            var clientheight = document.compatMode=="CSS1Compat" ? document.documentElement.clientHeight : document.body.clientHeight;
-            $("#AnchorContent").css('max-height', (clientheight - 160) + 'px');
-        }
-    });
-
-    function makeTOC(){
-        var h1s = $("body").find("h1");
-        var h2s = $("body").find("h2");
-        var h3s = $("body").find("h3");
-        var h4s = $("body").find("h4");
-        var h5s = $("body").find("h5");
-        var h6s = $("body").find("h6");
-
-        var headCounts = [h1s.length, h2s.length, h3s.length, h4s.length, h5s.length, h6s.length];
-        for(var i = 0; i < headCounts.length; i++){
-            if(headCounts[i] > 0){
-                if(vH1Tag == null){
-                    vH1Tag = 'h' + (i + 1);
-                }else if(vH2Tag == null){
-                    vH2Tag = 'h' + (i + 1);
-                }else if(vH3Tag == null){
-                    vH3Tag = 'h' + (i + 1);
-                }else if(vH4Tag == null){
-                    vH4Tag = 'h' + (i + 1);
-                }
-            }
-        }
-        if(vH1Tag == null){
-            hasNavItem = false;//hide TOC, nothing to show
-            return;
-        }else{
-            hasNavItem = true;//reset to display TOC
-        }
-
-        if($(".BlogAnchor").length == 0){
-            $("body").append('<div class="BlogAnchor">' + 
-                '<span style="color:red;position:absolute;top:-3px;left:3px;cursor:pointer;" ' +
-                'onclick="document.getElementsByClassName(\'BlogAnchor\')[0].style.display = \'none\';">X</span>' + '<p>' +
-                '<b id="AnchorContentToggle" title="Expand" style="cursor:pointer;">Content▲</b>' + 
-                '</p>' + '<div class="AnchorContent" id="AnchorContent"> </div>' + '</div>' );
-            var clientheight = document.compatMode=="CSS1Compat" ?
-                    document.documentElement.clientHeight : document.body.clientHeight;
-            $("#AnchorContent").css('max-height', (clientheight - 160) + 'px');
-        }
-
-        var vH1Index = 0, vH2Index = 0, vH3Index = 0, vH4Index = 0;
-        $("body").find("h1,h2,h3,h4,h5,h6").each(function(i,item){
-            var id = '';
-            var name = '';
-            var tag = $(item).get(0).tagName.toLowerCase();
-            var className = '';
-
-            if(tag == vH1Tag){
-                id = name = ++vH1Index;
-                name = id;
-                vH2Index = 0;
-                className = 'item_h1';
-            }else if(tag == vH2Tag){
-                id = vH1Index + '_' + ++vH2Index;
-                name = vH1Index + '.' + vH2Index;
-                vH3Index = 0;
-                className = 'item_h2';
-            }else if(tag == vH3Tag){
-                id = vH1Index + '_' + vH2Index + '_' + ++vH3Index;
-                name = vH1Index + '.' + vH2Index + '.' + vH3Index;
-                vH4Index = 0;
-                className = 'item_h3';
-            }else if(tag == vH4Tag){
-                id = vH1Index + '_' + vH2Index + '_' + vH3Index + '_' + ++vH4Index;
-                name = vH1Index + '.' + vH2Index + '.' + vH3Index + '.' + vH4Index;
-                className = 'item_h4';
-            }
-
-            $(item).attr("id","wow"+id);
-            $(item).addClass("wow_head");
-            $("#AnchorContent").append('<li><a class="nav_item '+className+' anchor-link" onclick="return false;" href="#" link="#wow'+id+'">'+name+"&ensp;"+$(this).text()+'</a></li>');
-        });
-
-        $("#AnchorContentToggle").click(function(){
-            var text = $(this).html();
-            if(text=="Content▲"){
-                $(this).html("Content▼");
-                $(this).attr({"title":"Collapse"});
-                $(".BlogAnchor").css("min-width","6%");
-            }else{
-                $(this).html("Content▲");
-                $(this).attr({"title":"Expand"});
-                $(".BlogAnchor").css("min-width","25%");
-            }
-            $("#AnchorContent").toggle();
-        });
-
-        $(".anchor-link").click(function(){
-            $(".BlogAnchor li .nav_item.current").removeClass('current'); 
-            $(this).addClass('current');
-            $(window).off('scroll', doscroll);
-            $("html,body").animate({scrollTop: $($(this).attr("link")).offset().top}, 100, 
-                function(){ $(window).on('scroll', doscroll); });
-        });
-
-        if(!showNavBar){ $('.BlogAnchor').hide(); }
-        if(!expandNavBar){
-            $(this).html("Content▼");
-            $(this).attr({"title":"Collapse"});
-            $("#AnchorContent").hide();
-        }
-    }
-
-    function doscroll(){ //$(window).scroll
-        scrollFunc();
-        var scrollTop = $(window).scrollTop();
-        var clientheight = document.compatMode=="CSS1Compat" ? document.documentElement.clientHeight : document.body.clientHeight;
-        $.each(headerTops, function(i, n){
-            var distance = n - scrollTop;
-            if(distance > 0){
-                var item = $(headerNavs[i])[0];
-                var curItemTop = $(headerNavs[i]).position().top;
-                var dist2Top = distance + item.offsetHeight;
-
-                if(scrollDirection == 'first'){
-                    //handle first in
-                    if(dist2Top < clientheight){
-                        $(".BlogAnchor li .nav_item.current").removeClass('current');
-                        $(headerNavs[i]).addClass('current');
-                    }else{
-                        $(".BlogAnchor li .nav_item.current").removeClass('current');
-                        if(i > 0){
-                            $(headerNavs[i - 1]).addClass('current');
-                        }
-                    }
-                    return false;
-                }
-                if(dist2Top < clientheight){
-                    $(".BlogAnchor li .nav_item.current").removeClass('current');
-                    $(headerNavs[i]).addClass('current');
-                    return false;
-                }else if(scrollDirection == 'up'){
-                    if(item.classList.contains('current')==true){
-                        $(".BlogAnchor li .nav_item.current").removeClass('current');
-                        if(i > 0){
-                            $(headerNavs[i - 1]).addClass('current');
-                            return false;
-                        }
-                    }
-                }
-            }
-        });
-        adjustCurItem();
-    }
-
-    function adjustCurItem(){
-        var curItem = $(".BlogAnchor li .nav_item.current");
-        if(typeof curItem.get(0) == "undefined") {
-            return;
-        }
-
-        var curItemTop = curItem.position().top;
-        var curItemHeight = document.getElementById("AnchorContent").getElementsByClassName("current")[0].offsetHeight;
-        var tocTop = $("#AnchorContent").position().top;
-        var tocHeight = document.getElementById("AnchorContent").clientHeight;
-        var scrolltop = $("#AnchorContent").scrollTop();
-        if(curItemTop <= tocTop){ //currentItem showed in AnchorContent
-            var dist = tocTop - curItemTop;
-            if(dist > 0){ $("#AnchorContent").scrollTop(scrolltop - dist); }
-        }else if(curItemTop + curItemHeight > tocTop){
-            var dist = curItemTop + curItemHeight - tocTop - tocHeight;
-            if(dist > 0){ //currentItem beyond AnchorContent
-                $("#AnchorContent").scrollTop(dist + scrolltop);
-            }
-        }
-    }
-
-    function calcBounds(){
-        headerNavs = $(".BlogAnchor li .nav_item");
-        $(".wow_head").each(function(i, n){
-            headerTops.push($(n).offset().top);
-        });
-        headerNavs.each(function(i, n){
-            tocTops.push($(n).offset().top);
-        });
-        
-        $(window).on('scroll', doscroll);
-        doscroll();
-    }
-
-    function hasScroll(Id){
-        var obj=document.getElementById(Id);
-        if(obj && obj.scrollHeight > obj.clientHeight){ 
-            return true;
-        } else { 
-            return false;
-        } 
-    }
-
-    //for preventDefault()
-    $.fn.extend({  
-        "preventScroll":function(){  
-            $(this).each(function(){  
-                var _this = this;  
-                if(navigator.userAgent.indexOf('Firefox') >= 0){   //firefox  
-                    _this.addEventListener('DOMMouseScroll',function(e){  
-                        _this.scrollTop += e.detail > 0 ? 50 : -50;     
-                        e.preventDefault();  
-                    },false);   
-                }else{  
-                    _this.onmousewheel = function(e){     
-                        e = e || window.event;     
-                        _this.scrollTop += e.wheelDelta > 0 ? -50 : 50;     
-                        return false;  
-                    };
-                }  
-            })    
-        }  
-    });  
-    // }}} End of TOC code
 
 }(document));

@@ -3,8 +3,7 @@
 var pageKey, 
     storage = chrome.storage.local,
     themePrefix = 'theme_',
-    specialThemePrefix = 'special_',
-    defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'GithubLeft', 'TopMarks', 'YetAnotherGithub'];
+    specialThemePrefix = 'special_';
 
 storage.get('theme', function(items) {
     var theme = items.theme ? items.theme : 'Clearness';
@@ -13,6 +12,11 @@ storage.get('theme', function(items) {
 
 // theme
 function getThemes() {
+    $('#default-themes').empty()
+    for (var t in window.config.themes) {
+        $('#default-themes').append($(`<option>${t}</option>`))
+    }
+
     storage.get(['custom_themes', pageKey], function(items) {
         if(items.custom_themes) {
             var k, v, themes = items.custom_themes;
@@ -33,7 +37,7 @@ function getThemes() {
 }
 
 chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
-    pageKey = specialThemePrefix + tab.url;
+    pageKey = specialThemePrefix + tab[0].url;
     getThemes();
     $('#theme').change(function() {
         var obj = {};
@@ -44,7 +48,7 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tab) {
 
 $('#btn-copy').click(function() {
     chrome.tabs.executeScript({
-        code: 'var s = $("<textarea/>").text($("body").html());$(document.body).append(s);s.select();document.execCommand("copy"); s.remove(); alert("Copied to clipboard");'
+        file: '/js/copyhtml.js'
     });
 });
 

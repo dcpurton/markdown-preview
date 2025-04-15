@@ -9,7 +9,6 @@
 <body>
 
 <div class="container">
-
     <h1>MarkDown Preview Plus Options</h1>
 
     <div id="msg"></div>
@@ -18,26 +17,14 @@
         <div class="page-header">
             <h2>Miscs</h2>
         </div>
-        <p>
-        <label class="checkbox"><input type="checkbox" id="mathjax"> Enable MathJax</label>
-        </p>
-        <p>
-        <label class="checkbox">
-          <input type="checkbox" id="enable-latex-delimiters">
-          Enable LaTeX delimiters: <code>$math$</code>, <code>\(math\)</code>,
-          <code>\[math\]</code>.
-          <strong>Note</strong>: LaTeX environments (e.g., <code>equation</code>
-          and <code>eqnarray</code>) are always (even if LaTeX delimiters are
-          disabled). The option conflict with php code block.
-        </label>
-        </p>
-        <p>
-        <label class="checkbox"><input type="checkbox" id="html"> Enable HTML content <strong>Note:</strong> Take care for XSS attack if you enable this option</label>
+        <div class="form-group checkbox-inline">
+        <label class="checkbox"><input type="checkbox" id="katex">Mermaid & KaTeX support inline(<code>$math$ or \(math\)</code>) and line(<code>$$math$$ or \[math\]</code></label>
         <label class="checkbox"><input type="checkbox" id="auto-reload"> Enable auto-reload</label>
-        </p>
+        <label class="checkbox"><input type="checkbox" id="toc"> Enable Table Of Content</label>
+        </div>
         <p>
         Reload Frequency
-        <select id="reload-freq">
+        <select id="reload-freq" class="span2">
             <option value="3">3 seconds</option>
             <option value="1">1 second</option>
             <option value="2">2 seconds</option>
@@ -49,30 +36,30 @@
 
     <section>
         <div class="page-header">
-            <h2>Theme</h2>
+            <h2>Themes</h2>
         </div>
 
-        <strong>Default CSS</strong>
+        <h4>Default CSS</h4>
         <p>This CSS applies to Live Preview.</p>
-        <p>
-        <select id="theme">
-            <optgroup label="Default themes">
-            <option>Clearness</option>
-            <option>ClearnessDark</option>
-            <option>dcpurton</option>
-            <option>Github</option>
-            <option>GithubLeft</option>
-            <option>TopMarks</option>
-            <option>YetAnotherGithub</option>
-            </optgroup>
-        </select>
-        </p>
+        <div>
+            <select id="theme" class="span3">
+                <optgroup label="Default themes" id="default-themes">
+                </optgroup>
+            </select>
 
-        <strong>Or add a customize CSS</strong>
-        <p>
-        <input type="file" id="css-file" class="span4">
-        <button id="btn-add-css" class="btn btn-small btn-primary">Add CSS</button>
-        </p>
+            <button id="btn-remove-css" class="btn btn-sm btn-primary" type="button">Remove CSS</button>
+        </div>
+
+        <div class="form-group">
+            <h4>Or add a customize CSS</h4>
+            <input type="file" id="css-file" name="css_files[]" multiple>
+            <h4>Or input CSS files path. One css file per line</h4>
+            <textarea class="form-control" id="css-paths" placeholder="The URL of local or remote css file."></textarea>
+            <p class="help-block">
+            <button id="btn-add-css" class="btn btn-sm btn-primary" type="button">Add CSS</button>
+            </p>
+        </div>
+
     </section>
 
     <section>
@@ -80,18 +67,20 @@
         <h2>Supported file extensions</h2>
         </div>
         <p class="cont-exts">
-        <label class="checkbox"><input type="checkbox" value="md" checked="checked">md</label>
-        <label class="checkbox"><input type="checkbox" value="text" checked="checked">text</label>
-        <label class="checkbox"><input type="checkbox" value="markdown" checked="checked">markdown</label>
-        <label class="checkbox"><input type="checkbox" value="mdown" checked="checked">mdown</label>
-        <label class="checkbox"><input type="checkbox" value="txt" checked="checked">txt</label>
-        <label class="checkbox"><input type="checkbox" value="mkd" checked="checked">mkd</label>
-        <label class="checkbox"><input type="checkbox" value="rst" checked="checked">rst</label>
-		<label class="checkbox"><input type="checkbox" value="rmd" checked="checked">rmd</label>
+        <label class="checkbox-inline"><input type="checkbox" value="md" checked="checked" class="span1">md</label>
+        <label class="checkbox-inline"><input type="checkbox" value="text" checked="checked">text</label>
+        <label class="checkbox-inline"><input type="checkbox" value="markdown" checked="checked">markdown</label>
+        <label class="checkbox-inline"><input type="checkbox" value="mdown" checked="checked">mdown</label>
+        <label class="checkbox-inline"><input type="checkbox" value="txt" checked="checked">txt</label>
+        <label class="checkbox-inline"><input type="checkbox" value="mkd" checked="checked">mkd</label>
+        <label class="checkbox-inline"><input type="checkbox" value="rst" checked="checked">rst</label>
+		<label class="checkbox-inline"><input type="checkbox" value="rmd" checked="checked">rmd</label>
         </p>
     </section>
 </div>
 
+<script src="js/highlight.min.js"></script>
+<script src="js/config.js"></script>
 <script src="js/options.js"></script>
 </body>
 </html>

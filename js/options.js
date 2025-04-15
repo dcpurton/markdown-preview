@@ -3,8 +3,7 @@
 var storage = chrome.storage.local,
     themePrefix = 'theme_',
     maxCustomCssSize = 8192,
-    defaultReloadFreq = 3,
-    defaultThemes = ['Clearness', 'ClearnessDark', 'dcpurton', 'Github', 'GithubLeft', 'TopMarks', 'YetAnotherGithub'];
+    defaultReloadFreq = 3;
 
 function message(text, type) {
     var msgType = type || 'success',
@@ -15,21 +14,16 @@ function message(text, type) {
     }, 3000);
 }
 
-// mathjax
-storage.get(['mathjax', 'enable_latex_delimiters', 'html'], function(items) {
-    if(items.mathjax) {
-        $('#mathjax').prop('checked', 'checked');
+storage.get(['katex', 'html', 'toc'], function(items) {
+    if(items.katex) {
+        $('#katex').prop('checked', 'checked');
     } else {
-        $('#mathjax').removeProp('checked');
+        $('#katex').removeProp('checked');
     }
-
-    if(items.enable_latex_delimiters) {
-        $('#enable-latex-delimiters').prop('checked', 'checked');
-        // Automaticaly enable MathJax
-        storage.set({'mathjax' :1});
-        $('#mathjax').prop('checked', 'checked');
+    if(items.toc) {
+        $('#toc').prop('checked', 'checked');
     } else {
-        $('#enable-latex-delimiters').removeProp('checked');
+        $('#toc').removeProp('checked');
     }
 
     if(items.html) {
@@ -53,32 +47,18 @@ $('#html').change(function() {
         storage.set({'html' : 1});
     } else {
         storage.remove('html');
+        $('#katex').removeProp('checked');
+        storage.remove('katex');
     }
 });
 
-$('#mathjax').change(function() {
+$('#katex').change(function() {
     if($(this).prop('checked')) {
-        storage.set({'mathjax' :1});
-        // Auto enable HTML
-        $('#html').prop("checked", "checked");
-        storage.set({'html' :1});
+        storage.set({'katex' : 1});
+        $('#html').prop('checked', 'checked');
+        storage.set({'html' : 1});
     } else {
-        storage.remove('mathjax');
-
-        // Automatically disable LaTeX delimiters
-        storage.remove('enable_latex_delimiters');
-        $('#enable-latex-delimiters').removeProp('checked');
-    }
-});
-
-$('#enable-latex-delimiters').change(function() {
-    if($(this).prop('checked')) {
-        storage.set({'enable_latex_delimiters' :1});
-        // Automatically enable MathJax
-        $('#mathjax').prop('checked', 'checked');
-        storage.set({'mathjax' :1});
-    } else {
-        storage.remove('enable_latex_delimiters');
+        storage.remove('katex');
     }
 });
 
@@ -90,8 +70,30 @@ $('#auto-reload').change(function() {
     }
 });
 
+$('#toc').change(function() {
+    if($(this).prop('checked')) {
+        storage.set({'toc' : 1});
+    } else {
+        storage.remove('toc');
+    }
+});
+
 // theme
+function loadThemeButton() {
+    var selected = $('#theme option:selected');
+    if (selected.parent().attr('label') == 'Custom themes') {
+        $('#btn-remove-css').show();
+    } else {
+        $('#btn-remove-css').hide();
+    }
+}
+
 function getThemes() {
+    $('#default-themes').empty()
+    for (var t in window.config.themes) {
+        $('#default-themes').append($(`<option>${t}</option>`))
+    }
+
     storage.get(['custom_themes', 'theme'], function(items) {
         if(items.custom_themes) {
             var k, v, themes = items.custom_themes;
@@ -107,19 +109,50 @@ function getThemes() {
 
         if(items.theme) {
             $('#theme').val(items.theme);
+            loadThemeButton();
+        } else {
+            $('#theme').prop("selectedIndex", 0);
+            $('#theme').trigger('change');
         }
     });
 }
 
-getThemes();
 $('#theme').change(function() {
     storage.set({'theme' : $(this).val()}, function() {
-        message('You changed the default css.');
+        message('Theme is changed');
+    });
+
+    loadThemeButton();
+});
+getThemes();
+
+$('#btn-remove-css').click(function() {
+    var selected = $('#theme option:selected').val();
+    storage.get(['custom_themes', 'theme'], function(items) {
+        if(items.theme == selected) {
+            storage.remove(['theme']);
+        }
+
+        if(items.custom_themes) {
+            var themes = items.custom_themes,
+                idx = themes.indexOf(selected);
+
+            if (idx > -1) {
+                themes.splice(idx, 1);
+            }
+
+            var obj = {'custom_themes' : themes},
+                cssFile = themePrefix + selected;
+
+            storage.set(obj, function() {
+                getThemes();
+            });
+            storage.remove([cssFile]);
+        }
     });
 });
 
-
-$('#btn-add-css').click(function() {
+function readCustomCss() {
     var file = $('#css-file')[0].files[0],
         reader = new FileReader();
 
@@ -129,7 +162,7 @@ $('#btn-add-css').click(function() {
     }
 
     if(file.size > maxCustomCssSize) {
-        message('Oops, only support the css file that size less than ' + (maxCustomCssSize / 1024) + '.', 'error');
+        message('Oops, only support the css file that size less than ' + (maxCustomCssSize / 1024) + 'kB.', 'error');
         return;
     }
 
@@ -152,12 +185,38 @@ $('#btn-add-css').click(function() {
             obj[themePrefix + filename] = fileString;
             storage.set(obj, function() {
                 getThemes();
-                message('Well done! You added a custom css.');
+                message('Custom theme is added.');
                 $('#css-file').val('');
             });
         });
     };
     reader.readAsText(file);
+}
+
+function readCustomCssPath() {
+    let text = $('#css-paths').val().trim()
+    let lines = text.split('\n')
+    let cssFilePathRegex = /^(.*\.css)$/
+    let cssPaths = []
+    lines.forEach((line, index) => {
+        if (cssFilePathRegex.test(line.trim())) {
+            cssPaths.push(line.trim())
+        }
+    })
+
+    if (cssPaths.length > 0) {
+        storage.set({custom_css_paths:  JSON.stringify(cssPaths)})
+        message('Custom CSS paths are added.');
+    }
+}
+
+$('#btn-add-css').click(function() {
+    if ($('#css-paths').val().trim().length > 0) {
+        readCustomCssPath()
+    } else {
+        storage.remove('custom_css_paths')
+        readCustomCss()
+    }
 });
 
 // file extensions
@@ -209,3 +268,12 @@ storage.get('exclude_exts', function(items) {
         $('input[value="' + k + '"]').prop('checked', false);
     });
 });
+
+storage.get('custom_css_paths', function(items) {
+    let paths = items.custom_css_paths
+    if (!paths) {
+        return
+    }
+
+    $('#css-paths').val(JSON.parse(paths).join('\n'))
+})

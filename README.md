@@ -10,11 +10,13 @@ Features
 --------
 
 1. Support auto reload.
-2. Support external css file.
-3. Customize theme for every md file.
-4. Support github flavored markdown.
-5. Export nicely formatted HTML.
-6. Support MathJax.
+1. Support external css file.
+1. Customize theme for every md file.
+1. Support github flavored markdown.
+1. Export nicely formatted HTML.
+1. KaTex support
+1. MathJax support
+1. Mermaid support
 
 Usage
 -----
@@ -27,9 +29,9 @@ Usage
 Math Syntax
 -----------
 
-Markdown Preview Plus uses the MathJax engine to support rendering of
+Markdown Preview Plus uses the KaTex engine to support rendering of
 mathematical expressions.  Markdown Preview Plus supports the following math
-syntax.  To minimize interference between Markdown and MathJax, some standard
+syntax.  To minimize interference between Markdown and KaTex, some standard
 LaTeX delimiters (indicated below) are disabled by default to avoid conflict
 with Markdown syntax.  LaTeX syntax can be enabled in the options.
 
@@ -47,6 +49,9 @@ with Markdown syntax.  LaTeX syntax can be enabled in the options.
 * __Double Backslash with Parentheses__:
   <code class="tex2jax_ignore">`\\(math\\)`</code>
 
+* __Single Dollar with Backquote__:
+  <code class="tex2jax_ignore">``$`math`$``</code>
+
 ### Display Math ###
 
 * __Single Backslash with Brackets__ (requires LaTeX delimiters):
@@ -59,31 +64,31 @@ with Markdown syntax.  LaTeX syntax can be enabled in the options.
 * __Double Dollar Signs__:
   <code class="tex2jax_ignore">`$$math$$`</code>
 
-* __LaTeX Environments__ (always available when MathJax is enabled)
+* __Math Code Block__:
+  ````
+  ```math
+  math
+  ```
+  ````
 
-  * <code class="tex2jax_ignore">`\begin{equation}math\end{equation}`</code>
+Credits
+-----
 
-  * <code class="tex2jax_ignore">`\begin{eqnarray}math\end{eqnarray}`</code>
+This extension uses the following open source components:
 
-  * ...
-
-Thanks
-------
-
-Thanks to Kevin Burke for his [markdown-friendly stylesheet][style],
-to chjj for his [JavaScript markdown processor][marked],
-to Boris Smus for his [Markdown Preview][mp] and to
-Swartz and Gruber for [Markdown][md].
-
-[webstore]: https://chrome.google.com/webstore/detail/markdown-preview-plus/febilkbfcbhebfnokafefeacimjdckgl
-[style]: http://kevinburke.bitbucket.org/markdowncss
-[marked]: https://github.com/chjj/marked
-[md]: http://en.wikipedia.org/wiki/Markdown
-[mp]: https://github.com/borismus/markdown-preview
-
+* [Marked][marked] - A markdown parser written in JavaScript
+* [markdown preview][mp] - The original markdown preview
+* [mermaid][mermaid] - A Javascript based diagramming and charting tool
+* [MathJax][mathjax] - A JavaScript display engine for LaTeX, MathML, and AsciiMath notation
 
 Links
 -----------------
 
 * [Change Log](https://github.com/volca/markdown-preview/wiki/Changelog)
+
+[webstore]: https://chrome.google.com/webstore/detail/markdown-preview-plus/febilkbfcbhebfnokafefeacimjdckgl
+[marked]: https://github.com/chjj/marked
+[mp]: https://github.com/borismus/markdown-preview
+[mermaid]: https://github.com/mermaid-js/mermaid
+[mathjax]: https://github.com/mathjax/MathJax
 
